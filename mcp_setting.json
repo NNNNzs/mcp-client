@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "server-status-mcp-server": {
+      "autoApprove": [
+        "get_remote_server_status"
+      ],
+      "disabled": false,
+      "timeout": 60,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@nnnnzs/server-status-mcp-server@0.0.6"
+      ],
+      "env": {
+        "SSH_CONFIG_PATH": "/Users/nnnnzs/.ssh/config"
+      },
+      "transportType": "stdio"
+    }
+  }
+}
