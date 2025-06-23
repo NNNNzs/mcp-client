@@ -12,9 +12,9 @@
         "@nnnnzs/server-status-mcp-server@0.0.6"
       ],
       "env": {
-        "SSH_CONFIG_PATH": "/Users/nnnnzs/.ssh/config"
+        "SSH_CONFIG_PATH": "/root/.ssh/config"
       },
-      "transportType": "stdio"
+      "type": "stdio"
     }
   }
 }

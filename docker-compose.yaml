@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  mcp-client:
+    build: .
+    container_name: mcp-client
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - OPEN_ROUTER_MODEL_NAME=${OPEN_ROUTER_MODEL_NAME}
+      - OPEN_ROUTER_BASE_URL=${OPEN_ROUTER_BASE_URL}
+      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ${HOME}/.ssh:/root/.ssh:ro  # 挂载SSH配置（只读）
+    networks:
+      - mcp-network
+networks:
+  mcp-network:
+    driver: bridge 
