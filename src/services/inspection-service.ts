@@ -116,14 +116,9 @@ export class InspectionService {
       },
       {
         type: SSEChunkType.CALL_CONFIRM,
-        content: '是否要执行自动优化脚本？',
+        content: '是否要生成详细的巡检报告？',
         delay: 500,
         requiresConfirmation: true
-      },
-      {
-        type: SSEChunkType.TEXT,
-        content: '巡检完成，已生成详细报告',
-        delay: 1000
       }
     ];
 
@@ -153,6 +148,11 @@ export class InspectionService {
               content: '用户已确认，继续执行...',
               date: new Date().toISOString()
             };
+            
+            // 如果是最后一个确认（生成报告），则开始生成报告
+            if (step.content.includes('生成详细的巡检报告')) {
+              yield* this.generateReportStream(sessionId);
+            }
           } else {
             yield {
               id: uuidv4(),
@@ -176,6 +176,96 @@ export class InspectionService {
 
     this.updateSessionStatus(sessionId, 'completed');
     console.log(`会话 ${sessionId} 的巡检流程已完成`);
+  }
+
+  /**
+   * 生成报告数据流
+   * @param sessionId 会话ID
+   * @returns AsyncGenerator<SSEChunk>
+   */
+  async* generateReportStream(sessionId: string): AsyncGenerator<SSEChunk> {
+    console.log(`开始为会话 ${sessionId} 生成报告数据流`);
+
+    // 拆分报告内容为多个chunk
+    const reportChunks = this.splitReportContent();
+
+    for (const chunk of reportChunks) {
+      await this.delay(chunk.delay);
+      
+      yield {
+        id: uuidv4(),
+        type: SSEChunkType.REPORT_ADD,
+        content: chunk.content,
+        date: new Date().toISOString()
+      };
+    }
+
+    // 报告生成完成
+    yield {
+      id: uuidv4(),
+      type: SSEChunkType.TEXT,
+      content: '巡检报告生成完成！',
+      date: new Date().toISOString()
+    };
+  }
+
+  /**
+   * 拆分报告内容为多个chunk
+   * @returns 报告块数组
+   */
+  private splitReportContent(): Array<{ content: string; delay: number }> {
+    const currentTime = new Date().toLocaleString();
+    
+    return [
+      {
+        content: '# 系统巡检报告\n\n## 概要\n当前系统状态：**正常运行**',
+        delay: 800
+      },
+      {
+        content: '## 检查项目\n- [x] 服务器资源使用率\n- [x] 数据库连接状态\n- [x] 应用程序响应时间\n- [x] 网络连接状态\n- [x] 服务依赖检查\n- [ ] 日志错误分析',
+        delay: 1000
+      },
+      {
+        content: '## 系统架构图\n```mermaid\ngraph TD\n    A[用户请求] --> B[负载均衡器]\n    B --> C[Web服务器1]\n    B --> D[Web服务器2]\n    C --> E[应用服务器]\n    D --> E\n    E --> F[数据库主库]\n    E --> G[数据库从库]\n    E --> H[Redis缓存]\n    F --> I[备份系统]\n\n    style A fill:#e1f5fe\n    style B fill:#f3e5f5\n    style E fill:#e8f5e8\n    style F fill:#fff3e0\n    style H fill:#fce4ec\n```',
+        delay: 1500
+      },
+      {
+        content: '## 性能监控流程\n```mermaid\nflowchart LR\n    Start([开始监控]) --> Check{检查服务状态}\n    Check -->|正常| Monitor[持续监控]\n    Check -->|异常| Alert[发送告警]\n    Monitor --> Collect[收集指标]\n    Collect --> Analyze[分析数据]\n    Analyze --> Report[生成报告]\n    Alert --> Fix[修复问题]\n    Fix --> Check\n    Report --> Archive[归档数据]\n\n    style Start fill:#c8e6c9\n    style Alert fill:#ffcdd2\n    style Fix fill:#fff9c4\n```',
+        delay: 1200
+      },
+      {
+        content: '## 详细信息\n\n### CPU 使用率\n当前CPU使用率为 **25%**，属于正常范围。\n\n### 内存使用\n内存使用率为 **68%**，建议关注。',
+        delay: 800
+      },
+      {
+        content: '```mermaid\npie title 内存使用分布\n    "应用程序" : 45\n    "系统服务" : 23\n    "缓存" : 20\n    "空闲" : 12\n```',
+        delay: 1000
+      },
+      {
+        content: '### 磁盘空间\n磁盘使用率为 **45%**，状态良好。\n\n### 网络状态\n网络延迟平均为 **2ms**，连接稳定。',
+        delay: 600
+      },
+      {
+        content: '## 系统状态时序图\n```mermaid\nsequenceDiagram\n    participant U as 用户\n    participant W as Web服务\n    participant A as 应用服务\n    participant D as 数据库\n    participant C as 缓存\n\n    U->>W: 发送请求\n    W->>A: 转发请求\n    A->>C: 查询缓存\n    alt 缓存命中\n        C->>A: 返回缓存数据\n    else 缓存未命中\n        A->>D: 查询数据库\n        D->>A: 返回数据\n        A->>C: 更新缓存\n    end\n    A->>W: 返回结果\n    W->>U: 响应用户\n```',
+        delay: 1800
+      },
+      {
+        content: '## 告警级别\n```mermaid\ngitgraph\n    commit id: "正常"\n    commit id: "轻微告警"\n    branch warning\n    checkout warning\n    commit id: "中等告警"\n    commit id: "严重告警"\n    checkout main\n    merge warning\n    commit id: "恢复正常"\n```',
+        delay: 1000
+      },
+      {
+        content: '## 巡检结果总结\n\n| 检查项目 | 状态 | 详情 |\n|---------|------|------|\n| CPU使用率 | ✅ 正常 | 25% |\n| 内存使用 | ⚠️ 关注 | 68% |\n| 磁盘空间 | ✅ 正常 | 45% |\n| 网络延迟 | ✅ 正常 | 2ms |\n| 数据库连接 | ✅ 正常 | 连接池正常 |',
+        delay: 1200
+      },
+      {
+        content: '### 建议措施\n1. **内存优化**：建议清理不必要的缓存数据\n2. **性能监控**：继续保持24小时监控\n3. **备份检查**：确保备份系统正常运行\n\n> **注意**: 系统整体运行良好，建议定期进行性能优化。',
+        delay: 800
+      },
+      {
+        content: `---\n*报告生成时间：${currentTime}*\n*巡检执行人：AI智能助手*`,
+        delay: 500
+      }
+    ];
   }
 
   /**

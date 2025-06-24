@@ -10,7 +10,8 @@ export enum SSEChunkType {
   THINK = 'THINK',
   CALL_CONFIRM = 'CALL-CONFIRM',
   MCP_RESULT = 'MCP-RESULT',
-  TEXT = 'TEXT'
+  TEXT = 'TEXT',
+  REPORT_ADD = 'REPORT-ADD'
 }
 
 /**

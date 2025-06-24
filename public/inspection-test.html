@@ -105,6 +105,72 @@
         .reject-btn {
             background-color: #f44336;
         }
+
+        .report-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .report-content {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+
+        .report-content h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .report-content h2 {
+            color: #34495e;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .report-content h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .report-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .report-content th,
+        .report-content td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .report-content th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .report-content pre {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            overflow-x: auto;
+        }
+
+        .report-content blockquote {
+            border-left: 4px solid #3498db;
+            margin: 15px 0;
+            padding-left: 15px;
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -141,6 +207,7 @@
             <button id="connectBtn" onclick="connectSSE()" disabled>连接SSE流</button>
             <button id="disconnectBtn" onclick="disconnectSSE()" disabled>断开连接</button>
             <button onclick="clearLog()">清空日志</button>
+            <button onclick="clearReport()">清空报告</button>
         </div>
 
         <div class="section">
@@ -151,7 +218,14 @@
         </div>
 
         <div class="section">
-            <h2>4. 手动确认操作</h2>
+            <h2>4. 巡检报告</h2>
+            <div id="reportContainer" class="report-container" style="display: none;">
+                <div id="reportContent" class="report-content"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5. 手动确认操作</h2>
             <div class="form-group">
                 <label for="chunkId">Chunk ID:</label>
                 <input type="text" id="chunkId" placeholder="从日志中复制chunk ID">
@@ -181,6 +255,73 @@
 
         function clearLog() {
             document.getElementById('logContainer').innerHTML = '';
+        }
+
+        function addReportContent(content) {
+            const reportContainer = document.getElementById('reportContainer');
+            const reportContent = document.getElementById('reportContent');
+            
+            // 显示报告容器
+            reportContainer.style.display = 'block';
+            
+            // 将Markdown内容转换为HTML并添加到报告中
+            const htmlContent = convertMarkdownToHtml(content);
+            reportContent.innerHTML += htmlContent;
+            
+            // 滚动到报告容器底部
+            reportContainer.scrollTop = reportContainer.scrollHeight;
+        }
+
+        function convertMarkdownToHtml(markdown) {
+            let html = markdown;
+            
+            // 处理标题
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            
+            // 处理粗体
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // 处理代码块
+            html = html.replace(/```mermaid([\s\S]*?)```/g, '<pre><code class="mermaid">$1</code></pre>');
+            html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            
+            // 处理内联代码
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // 处理表格
+            html = html.replace(/\|(.+)\|/g, function(match, content) {
+                const cells = content.split('|').map(cell => cell.trim());
+                if (cells.every(cell => cell.match(/^[-:]+$/))) {
+                    return ''; // 跳过分隔行
+                }
+                const cellTags = cells.map(cell => `<td>${cell}</td>`).join('');
+                return `<tr>${cellTags}</tr>`;
+            });
+            
+            // 处理列表
+            html = html.replace(/^- \[(x| )\] (.*)$/gim, function(match, checked, text) {
+                const checkedAttr = checked === 'x' ? 'checked' : '';
+                return `<label><input type="checkbox" ${checkedAttr} disabled> ${text}</label><br>`;
+            });
+            html = html.replace(/^- (.*)$/gim, '<li>$1</li>');
+            
+            // 处理引用
+            html = html.replace(/^> (.*)$/gim, '<blockquote>$1</blockquote>');
+            
+            // 处理分隔线
+            html = html.replace(/^---$/gim, '<hr>');
+            
+            // 处理换行
+            html = html.replace(/\n/g, '<br>');
+            
+            return html;
+        }
+
+        function clearReport() {
+            document.getElementById('reportContent').innerHTML = '';
+            document.getElementById('reportContainer').style.display = 'none';
         }
 
         async function startInspection() {
@@ -258,6 +399,11 @@
                     case 'TEXT':
                         logType = 'info';
                         prefix = '💬 ';
+                        break;
+                    case 'REPORT-ADD':
+                        logType = 'success';
+                        prefix = '📋 报告: ';
+                        addReportContent(data.content);
                         break;
                 }
 
