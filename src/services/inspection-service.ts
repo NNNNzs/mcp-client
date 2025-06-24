@@ -28,10 +28,10 @@ export class InspectionService {
       createdAt: new Date(),
       status: 'active'
     };
-    
+
     this.sessions.set(sessionId, session);
     console.log(`创建巡检会话: ${sessionId}, 系统ID: ${systemId}`);
-    
+
     return sessionId;
   }
 
@@ -76,43 +76,45 @@ export class InspectionService {
       {
         type: SSEChunkType.TEXT,
         content: `开始对系统 ${session.systemId} 进行巡检...`,
-        delay: 1000
+        delay: 500
       },
       {
         type: SSEChunkType.THINK,
         content: '正在分析系统当前状态...',
-        delay: 2000
+        delay: 500
       },
       {
         type: SSEChunkType.TEXT,
         content: '检测到系统负载较高，建议进行性能优化',
-        delay: 1500
+        delay: 500
       },
       {
         type: SSEChunkType.CALL_CONFIRM,
-        content: '是否要调用MCP工具获取详细的系统监控数据？',
+        // content: '是否要调用MCP工具获取详细的系统监控数据？',
+        "content": "{\"tool_name\": \"get_targets\", \"tool_args\": {}}",
         delay: 1000,
         requiresConfirmation: true
       },
       {
         type: SSEChunkType.MCP_RESULT,
-        content: JSON.stringify({
-          cpu_usage: '75%',
-          memory_usage: '82%',
-          disk_usage: '65%',
-          network_io: '1.2MB/s'
-        }, null, 2),
-        delay: 2000
+        content: "\"{\\n  \\\"resultType\\\": \\\"vector\\\",\\n  \\\"result\\\": [\\n    {\\n      \\\"metric\\\": {\\n        \\\"__name__\\\": \\\"ALERTS\\\",\\n        \\\"alertname\\\": \\\"KubeAggregatedAPIDown\\\",\\n        \\\"alertstate\\\": \\\"firing\\\",\\n        \\\"name\\\": \\\"v1beta1.metrics.k8s.io\\\",\\n        \\\"namespace\\\": \\\"default\\\",\\n        \\\"severity\\\": \\\"warning\\\"\\n      },\\n      \\\"value\\\": [\\n        1750754775.832,\\n        \\\"1\\\"\\n      ]\\n    },\\n    {\\n      \\\"metric\\\": {\\n        \\\"__name__\\\": \\\"ALERTS\\\",\\n        \\\"alertname\\\": \\\"Watchdog\\\",\\n        \\\"alertstate\\\": \\\"firing\\\",\\n        \\\"severity\\\": \\\"none\\\"\\n      },\\n      \\\"value\\\": [\\n        1750754775.832,\\n        \\\"1\\\"\\n      ]\\n    }\\n  ]\\n}\"",
+        // content: JSON.stringify({
+        //   cpu_usage: '75%',
+        //   memory_usage: '82%',
+        //   disk_usage: '65%',
+        //   network_io: '1.2MB/s'
+        // }, null, 2),
+        delay: 500
       },
       {
         type: SSEChunkType.THINK,
         content: '正在分析监控数据，生成优化建议...',
-        delay: 3000
+        delay: 500
       },
       {
         type: SSEChunkType.TEXT,
         content: '基于监控数据分析，建议：\n1. 优化内存使用，清理缓存\n2. 检查CPU密集型进程\n3. 监控磁盘I/O性能',
-        delay: 1000
+        delay: 500
       },
       {
         type: SSEChunkType.CALL_CONFIRM,
@@ -124,7 +126,7 @@ export class InspectionService {
 
     for (const step of inspectionSteps) {
       await this.delay(step.delay);
-      
+
       const chunk: SSEChunk = {
         id: uuidv4(),
         type: step.type,
@@ -138,7 +140,7 @@ export class InspectionService {
       if (step.requiresConfirmation) {
         this.updateSessionStatus(sessionId, 'waiting', chunk.id);
         console.log(`等待用户确认操作，chunk ID: ${chunk.id}`);
-        
+
         try {
           const confirmed = await this.waitForConfirmation(chunk.id);
           if (confirmed) {
@@ -148,7 +150,7 @@ export class InspectionService {
               content: '用户已确认，继续执行...',
               date: new Date().toISOString()
             };
-            
+
             // 如果是最后一个确认（生成报告），则开始生成报告
             if (step.content.includes('生成详细的巡检报告')) {
               yield* this.generateReportStream(sessionId);
@@ -169,7 +171,7 @@ export class InspectionService {
             date: new Date().toISOString()
           };
         }
-        
+
         this.updateSessionStatus(sessionId, 'active');
       }
     }
@@ -191,7 +193,7 @@ export class InspectionService {
 
     for (const chunk of reportChunks) {
       await this.delay(chunk.delay);
-      
+
       yield {
         id: uuidv4(),
         type: SSEChunkType.REPORT_ADD,
@@ -215,7 +217,7 @@ export class InspectionService {
    */
   private splitReportContent(): Array<{ content: string; delay: number }> {
     const currentTime = new Date().toLocaleString();
-    
+
     return [
       {
         content: '# 系统巡检报告\n\n## 概要\n当前系统状态：**正常运行**',
@@ -230,11 +232,11 @@ export class InspectionService {
         delay: 1500
       },
       {
-        content: '## 性能监控流程\n```mermaid\nflowchart LR\n    Start([开始监控]) --> Check{检查服务状态}\n    Check -->|正常| Monitor[持续监控]\n    Check -->|异常| Alert[发送告警]\n    Monitor --> Collect[收集指标]\n    Collect --> Analyze[分析数据]\n    Analyze --> Report[生成报告]\n    Alert --> Fix[修复问题]\n    Fix --> Check\n    Report --> Archive[归档数据]\n\n    style Start fill:#c8e6c9\n    style Alert fill:#ffcdd2\n    style Fix fill:#fff9c4\n```',
+        content: '## 性能监控流程 \n```mermaid\nflowchart LR\n    Start([开始监控]) --> Check{检查服务状态}\n    Check -->|正常| Monitor[持续监控]\n    Check -->|异常| Alert[发送告警]\n    Monitor --> Collect[收集指标]\n    Collect --> Analyze[分析数据]\n    Analyze --> Report[生成报告]\n    Alert --> Fix[修复问题]\n    Fix --> Check\n    Report --> Archive[归档数据]\n\n    style Start fill:#c8e6c9\n    style Alert fill:#ffcdd2\n    style Fix fill:#fff9c4\n```',
         delay: 1200
       },
       {
-        content: '## 详细信息\n\n### CPU 使用率\n当前CPU使用率为 **25%**，属于正常范围。\n\n### 内存使用\n内存使用率为 **68%**，建议关注。',
+        content: '## 详细信息 \n### CPU 使用率\n当前CPU使用率为 **25%**，属于正常范围。\n\n### 内存使用\n内存使用率为 **68%**，建议关注。',
         delay: 800
       },
       {
@@ -242,7 +244,7 @@ export class InspectionService {
         delay: 1000
       },
       {
-        content: '### 磁盘空间\n磁盘使用率为 **45%**，状态良好。\n\n### 网络状态\n网络延迟平均为 **2ms**，连接稳定。',
+        content: '### 磁盘空间\n 磁盘使用率为 **45%**，状态良好。\n\n### 网络状态\n网络延迟平均为 **2ms**，连接稳定。',
         delay: 600
       },
       {
@@ -250,11 +252,11 @@ export class InspectionService {
         delay: 1800
       },
       {
-        content: '## 告警级别\n```mermaid\ngitgraph\n    commit id: "正常"\n    commit id: "轻微告警"\n    branch warning\n    checkout warning\n    commit id: "中等告警"\n    commit id: "严重告警"\n    checkout main\n    merge warning\n    commit id: "恢复正常"\n```',
+        content: '## 告警级别\n```mermaid\ngitGaph\n    commit id: "正常"\n    commit id: "轻微告警"\n    branch warning\n    checkout warning\n    commit id: "中等告警"\n    commit id: "严重告警"\n    checkout main\n    merge warning\n    commit id: "恢复正常"\n```',
         delay: 1000
       },
       {
-        content: '## 巡检结果总结\n\n| 检查项目 | 状态 | 详情 |\n|---------|------|------|\n| CPU使用率 | ✅ 正常 | 25% |\n| 内存使用 | ⚠️ 关注 | 68% |\n| 磁盘空间 | ✅ 正常 | 45% |\n| 网络延迟 | ✅ 正常 | 2ms |\n| 数据库连接 | ✅ 正常 | 连接池正常 |',
+        content: '## 巡检结果总结\n\n | 检查项目 | 状态 | 详情 |\n|---------|------|------|\n| CPU使用率 | ✅ 正常 | 25% |\n| 内存使用 | ⚠️ 关注 | 68% |\n| 磁盘空间 | ✅ 正常 | 45% |\n| 网络延迟 | ✅ 正常 | 2ms |\n| 数据库连接 | ✅ 正常 | 连接池正常 |',
         delay: 1200
       },
       {

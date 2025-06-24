@@ -105,7 +105,7 @@ export const createInspectionRoutes = (inspectionService: InspectionService): ex
         // 发送结束消息
         res.write(`data: ${JSON.stringify({
           id: 'end',
-          type: 'TEXT',
+          type: 'END',
           content: '巡检流程已完成',
           date: new Date().toISOString()
         })}\n\n`);
