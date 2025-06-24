@@ -1,33 +1,56 @@
 {
   "name": "mcp-client",
   "version": "1.0.0",
-  "description": "",
+  "description": "多智能体协同系统 - 基于MCP的智能体协作平台",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc -w & node --watch dist/index.js",
-    "clean": "rm -rf dist"
+    "dev:server": "tsc && node dist/index.js",
+    "clean": "rm -rf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "multi-agent",
+    "ai",
+    "mcp",
+    "collaboration",
+    "sse",
+    "typescript"
+  ],
+  "author": "nnnnzs",
+  "license": "MIT",
   "dependencies": {
     "@langchain/core": "^0.3.44",
     "@langchain/openai": "^0.5.5",
     "@modelcontextprotocol/sdk": "^1.9.0",
     "@types/cors": "^2.8.17",
+    "@types/uuid": "^10.0.0",
     "axios": "^1.8.4",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "langchain": "^0.3.21",
-    "openai": "^4.93.0"
+    "openai": "^4.93.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
-    "@types/node": "^22.14.0"
-  }
+    "@types/node": "^22.14.0",
+    "typescript": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nnnnzs/mcp-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nnnnzs/mcp-client/issues"
+  },
+  "homepage": "https://github.com/nnnnzs/mcp-client#readme"
 }

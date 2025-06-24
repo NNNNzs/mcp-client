@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>巡检API测试页面</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .log-container {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .log-info { background-color: #e3f2fd; }
+        .log-success { background-color: #e8f5e8; }
+        .log-warning { background-color: #fff3e0; }
+        .log-error { background-color: #ffebee; }
+        .log-think { background-color: #f3e5f5; }
+        .log-confirm { background-color: #fffde7; }
+        .session-info {
+            background-color: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .pending-confirm {
+            background-color: #fff3e0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 4px solid #ff9800;
+        }
+        .confirm-buttons {
+            margin-top: 10px;
+        }
+        .confirm-btn {
+            background-color: #4CAF50;
+            margin-right: 10px;
+        }
+        .reject-btn {
+            background-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 巡检API测试页面</h1>
+        
+        <div class="section">
+            <h2>1. 开始巡检</h2>
+            <div class="form-group">
+                <label for="systemId">系统ID:</label>
+                <input type="text" id="systemId" value="system-001" placeholder="请输入系统ID">
+            </div>
+            <button onclick="startInspection()">开始巡检</button>
+        </div>
+
+        <div id="sessionInfo" class="session-info" style="display: none;">
+            <h3>当前会话信息</h3>
+            <p><strong>会话ID:</strong> <span id="currentSessionId"></span></p>
+            <p><strong>系统ID:</strong> <span id="currentSystemId"></span></p>
+            <p><strong>创建时间:</strong> <span id="createdAt"></span></p>
+        </div>
+
+        <div id="pendingConfirm" class="pending-confirm" style="display: none;">
+            <h3>⚠️ 待确认操作</h3>
+            <p id="confirmContent"></p>
+            <div class="confirm-buttons">
+                <button class="confirm-btn" onclick="confirmAction(true)">确认</button>
+                <button class="reject-btn" onclick="confirmAction(false)">拒绝</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>2. SSE数据流</h2>
+            <button id="connectBtn" onclick="connectSSE()" disabled>连接SSE流</button>
+            <button id="disconnectBtn" onclick="disconnectSSE()" disabled>断开连接</button>
+            <button onclick="clearLog()">清空日志</button>
+        </div>
+
+        <div class="section">
+            <h2>3. 实时日志</h2>
+            <div id="logContainer" class="log-container">
+                <div class="log-entry log-info">等待开始巡检...</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. 手动确认操作</h2>
+            <div class="form-group">
+                <label for="chunkId">Chunk ID:</label>
+                <input type="text" id="chunkId" placeholder="从日志中复制chunk ID">
+            </div>
+            <div class="form-group">
+                <label for="note">备注 (可选):</label>
+                <textarea id="note" rows="3" placeholder="可选的备注信息"></textarea>
+            </div>
+            <button onclick="manualConfirm(true)">手动确认</button>
+            <button onclick="manualConfirm(false)">手动拒绝</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        let eventSource = null;
+        let pendingChunkId = null;
+
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+
+        async function startInspection() {
+            const systemId = document.getElementById('systemId').value;
+            if (!systemId) {
+                log('请输入系统ID', 'error');
+                return;
+            }
+
+            try {
+                log(`开始创建巡检会话，系统ID: ${systemId}`, 'info');
+                const response = await fetch('/api/inspection/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ systemId })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                currentSessionId = data.sessionId;
+                
+                document.getElementById('currentSessionId').textContent = data.sessionId;
+                document.getElementById('currentSystemId').textContent = systemId;
+                document.getElementById('createdAt').textContent = data.createdAt;
+                document.getElementById('sessionInfo').style.display = 'block';
+                document.getElementById('connectBtn').disabled = false;
+
+                log(`✅ 巡检会话创建成功: ${data.sessionId}`, 'success');
+            } catch (error) {
+                log(`❌ 创建巡检会话失败: ${error.message}`, 'error');
+            }
+        }
+
+        function connectSSE() {
+            if (!currentSessionId) {
+                log('请先创建巡检会话', 'error');
+                return;
+            }
+
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            log(`🔗 连接SSE流: ${currentSessionId}`, 'info');
+            eventSource = new EventSource(`/api/inspection/stream?sessionId=${currentSessionId}`);
+
+            eventSource.onopen = function() {
+                log('✅ SSE连接已建立', 'success');
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+            };
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                let logType = 'info';
+                let prefix = '';
+
+                switch(data.type) {
+                    case 'THINK':
+                        logType = 'think';
+                        prefix = '🤔 思考: ';
+                        break;
+                    case 'CALL-CONFIRM':
+                        logType = 'confirm';
+                        prefix = '❓ 确认: ';
+                        showPendingConfirm(data);
+                        break;
+                    case 'MCP-RESULT':
+                        logType = 'success';
+                        prefix = '📊 MCP结果: ';
+                        break;
+                    case 'TEXT':
+                        logType = 'info';
+                        prefix = '💬 ';
+                        break;
+                }
+
+                log(`${prefix}${data.content} [ID: ${data.id}]`, logType);
+            };
+
+            eventSource.onerror = function(error) {
+                log('❌ SSE连接错误', 'error');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            };
+        }
+
+        function disconnectSSE() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                log('🔌 SSE连接已断开', 'warning');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            }
+        }
+
+        function showPendingConfirm(data) {
+            pendingChunkId = data.id;
+            document.getElementById('confirmContent').textContent = data.content;
+            document.getElementById('pendingConfirm').style.display = 'block';
+        }
+
+        function hidePendingConfirm() {
+            document.getElementById('pendingConfirm').style.display = 'none';
+            pendingChunkId = null;
+        }
+
+        async function confirmAction(confirmed) {
+            if (!pendingChunkId) {
+                log('没有待确认的操作', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/inspection/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chunkId: pendingChunkId,
+                        confirmed: confirmed,
+                        note: `用户${confirmed ? '确认' : '拒绝'}操作`
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                log(`✅ ${data.message}`, 'success');
+                hidePendingConfirm();
+            } catch (error) {
+                log(`❌ 确认操作失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function manualConfirm(confirmed) {
+            const chunkId = document.getElementById('chunkId').value;
+            const note = document.getElementById('note').value;
+
+            if (!chunkId) {
+                log('请输入chunk ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/inspection/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chunkId: chunkId,
+                        confirmed: confirmed,
+                        note: note || undefined
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                log(`✅ 手动${confirmed ? '确认' : '拒绝'}成功: ${data.message}`, 'success');
+                document.getElementById('chunkId').value = '';
+                document.getElementById('note').value = '';
+            } catch (error) {
+                log(`❌ 手动确认失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面关闭时断开SSE连接
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html> 
